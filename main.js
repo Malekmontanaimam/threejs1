@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { PI } from 'three/examples/jsm/nodes/Nodes.js';
 
 let camera, scene, renderer;
 let controls, water, sun;
@@ -34,7 +35,9 @@ update1(){
 if(this.jet){
   this.jet.rotation.y+=this.speed.rot; 
    this.jet.translateZ(this.speed.vel); 
- }}}
+ }}
+
+}
 const jet=new JET();
 init();
 animate();
@@ -151,10 +154,10 @@ if(e.key=="ArrowDown"){
   jet.speed.vel=1;
 }
 if(e.key=="ArrowRight"){
-  jet.speed.rot=-0.1;
+  jet.speed.rot=-Math.PI / 180;;
 }
 if(e.key=="ArrowLeft"){
-  jet.speed.rot=0.1;
+  jet.speed.rot=Math.PI / 180;;
 }
 })
    
