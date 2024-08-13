@@ -4,64 +4,46 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Water } from './WaterPlus';
 import { Sky } from 'three/examples/jsm/objects/Sky';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import Physic from './physics/Physic';
+import Physic from './physics/physic';
+
 let camera, scene, renderer;
 let controls, water, sun;
-
+const steeringRate = Math.PI / 180; // معدل التغيير لزاوية التوجيه
+  const maxSteeringAngle = Math.PI / 9; // أقصى زاوية توجيه (30 درجة)
+  
 const raycaster = new THREE.Raycaster();
 const gltfloader = new GLTFLoader();
 const physics = new Physic();
-
-const planeSize = 10000; // Define the size of the water plane
+let steeringAngle = 0;
+let throttle = 0.8; 
+const planeSize = 10000;
 
 class JET {
   constructor() {
-    gltfloader.load('./assets/jetmodel/scene.gltf', (gltf) => {
+    gltfloader.load('./assets/jetmodel/untitled.glb', (gltf) => {
       gltf.scene.scale.set(0.4, 0.4, 0.4);
-      gltf.scene.position.set(5, 0, 10); // Initial position on the water surface
 
-      this.speed = {
-        vel: 0,
-        rot: 0
-      };
-
-      gltf.scene.rotation.y = 9.5;
-
+      gltf.scene.position.set(5, 0, 10);
+     /// gltf.scene.rotation.z = Math.PI/5;
       this.jet = gltf.scene;
       scene.add(gltf.scene);
       animate();
     });
   }
 
-  stop() {
-    this.speed.rot = 0;
-    this.speed.vel = 0;
-  }
-
   update() {
     if (this.jet) {
-      this.jet.rotation.y += this.speed.rot;
-      this.jet.translateZ(this.speed.vel);
-
-      // Adjust the jetski height based on the water surface
-      const waveHeight = getWaveHeight(this.jet.position.x, this.jet.position.z);
-      this.jet.position.y = waveHeight + 2; // Adjust to keep the jetski above the water surface
-
-      // Check if the jet ski is at the edge of the plane
-      if (Math.abs(this.jet.position.x) > planeSize / 2 || Math.abs(this.jet.position.z) > planeSize / 2) {
-        // Refresh the page if the jet ski is at the edge of the plane
-        window.location.reload();
-      }
+      this.jet.position.copy(physics.jetski.position);
+      this.jet.rotation.copy(physics.orientation);
     }
   }
 }
 
 let jet = new JET();
-
+// jet.scene.rotation.y(Math.PI)
 function getWaveHeight(x, z) {
-  // Simple wave function for demonstration
-  const waveFrequency = 0.17;
-  const waveAmplitude = 0.6;
+  const waveFrequency = 1;
+  const waveAmplitude = 0.9;
   return Math.sin(x * waveFrequency) * waveAmplitude + Math.cos(z * waveFrequency) * waveAmplitude;
 }
 
@@ -94,7 +76,7 @@ function init() {
       }),
       sunDirection: new THREE.Vector3(),
       sunColor: 0xffffff,
-      waterColor: 0x44a0e6, // Nice blue-green water color
+      waterColor: 0x44a0e6,
       distortionScale: 3.7,
       fog: scene.fog !== undefined,
       side: THREE.DoubleSide
@@ -133,12 +115,18 @@ function init() {
     sky.material.uniforms['sunPosition'].value.copy(sun);
     water.material.uniforms['sunDirection'].value.copy(sun).normalize();
 
+    // Update water material settings
+water.material.uniforms['sunColor'].value.set(0x0077ff); // Change to a different color
+water.material.uniforms['waterColor'].value.set(0x001e66); // Darker water color for more realism
+water.material.uniforms['distortionScale'].value = 5.0; // Increase distortion
+
     if (renderTarget !== undefined) renderTarget.dispose();
 
     sceneEnv.add(sky);
     renderTarget = pmremGenerator.fromScene(sceneEnv);
     scene.add(sky);
 
+    
     scene.environment = renderTarget.texture;
   }
 
@@ -147,29 +135,47 @@ function init() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 10, 0);
   controls.minDistance = -5.0;
-  controls.maxDistance = 10000;
+  controls.maxDistance = 1000000;
   controls.update();
-
+ 
   window.addEventListener('resize', onWindowResize);
-
   window.addEventListener('keydown', function (e) {
     if (e.key === "ArrowUp") {
-      jet.speed.vel = -1;
+      throttle = 1;
     }
     if (e.key === "ArrowDown") {
-      jet.speed.vel = 1;
+      throttle = 0;
     }
     if (e.key === "ArrowRight") {
-      jet.speed.rot = -Math.PI / 180;
-    }
-    if (e.key === "ArrowLeft") {
-      jet.speed.rot = Math.PI / 180;
-    }
-  });
+      steeringAngle =steeringRate;
+      if (steeringAngle > maxSteeringAngle) {
+          steeringAngle = maxSteeringAngle;
+      }
+  }
+  if (e.key === "ArrowLeft") {
+      steeringAngle =(-steeringRate);
+      if (steeringAngle < -maxSteeringAngle) {
+          steeringAngle = -maxSteeringAngle;
+      }
+  }
+});
 
-  window.addEventListener('keyup', function (e) {
-    jet.stop();
-  });
+window.addEventListener('keyup', function (e) {
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      if (steeringAngle > 0) {
+          steeringAngle -= steeringRate;
+          if (steeringAngle < 0) {
+              steeringAngle = 0;
+          }
+      } else if (steeringAngle < 0) {
+          steeringAngle += steeringRate;
+          if (steeringAngle > 0) {
+              steeringAngle = 0;
+          }
+      }
+  }
+});
+  physics.update(steeringAngle, throttle);
 }
 
 function onWindowResize() {
@@ -183,16 +189,15 @@ function animate() {
   updateCamera();
   controls.update();
 
-  physics.update();
-  jet.jet.position.add(physics.jetski.position);
+  physics.update(steeringAngle, throttle);
 
-  
   if (jet) jet.update();
-  document.getElementById('acceleration').innerText = `Acceleration: (${physics.acceleration.x},${physics.acceleration.y},${physics.acceleration.z})`;
+  
+  document.getElementById('acceleration').innerText = `Acceleration: (${physics.acceleration.z.toFixed(2)})`;
   document.getElementById('position').innerText = `Position: (${physics.jetski.position.x.toFixed(2)}, ${physics.jetski.position.y.toFixed(2)}, ${physics.jetski.position.z.toFixed(2)})`;
-  document.getElementById('thrust').innerText = `Thrust: ${physics.thrust.power},${physics.thrust.velocityFan.x}`;
-  document.getElementById('velocity').innerText = `Velocity: (${physics.velocity.x.toFixed(2)}, ${physics.velocity.y.toFixed(2)}, ${physics.velocity.z.toFixed(2)})`;
-  document.getElementById('drag').innerText = `Drag: (${physics.drag.coefficient},${physics.drag.area},${physics.drag.fluidDensity},${physics.drag.velocity.z})`;
+  document.getElementById('thrust').innerText = `Thrust: ${physics.thrust.powerEngine},${physics.thrust.velocityFan.x}`;
+  document.getElementById('velocity').innerText = `Velocity: (${physics.jetski.velocity.x.toFixed(2)}, ${physics.velocity.y.toFixed(2)}, ${physics.jetski.velocity.z.toFixed(2)})`;
+  document.getElementById('drag').innerText = `Drag: (${physics.drag.coefficient},${physics.drag.area},${physics.drag.fluidDensity},${physics.drag.drag_force.z})`;
   document.getElementById('deltaT').innerText = `Delta T: ${physics.deltaT}`;
   requestAnimationFrame(animate);
 }
@@ -204,10 +209,24 @@ function render() {
 
 function updateCamera() {
   if (jet.jet) {
-    const offset = new THREE.Vector3(100, 100, 300); // Adjust the offset to follow behind the jet ski
-    const targetPosition = jet.jet.position.clone().add(offset.applyMatrix4(jet.jet.matrixWorld));
+    const offset = new THREE.Vector3(100, 100, 300); // Offset behind and above the jet (adjust as needed)
+    const worldPosition = new THREE.Vector3();
+    
+    // Get the jet's current world position
+    jet.jet.getWorldPosition(worldPosition);
 
-    camera.position.lerp(targetPosition, 0.1); // Smooth follow effect
-    camera.lookAt(jet.jet.position);
+    // Apply the offset relative to the jet's orientation
+    const offsetRotated = offset.clone().applyQuaternion(jet.jet.quaternion);
+
+    // Calculate the target position for the camera
+    const targetPosition = worldPosition.clone().add(offsetRotated);
+
+    // Set the camera position directly to the target position
+    camera.position.copy(targetPosition);
+
+    // Make the camera look at the jet's current position
+    camera.lookAt(worldPosition);
   }
 }
+
+

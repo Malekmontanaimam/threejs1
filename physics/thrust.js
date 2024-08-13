@@ -1,23 +1,15 @@
 import * as THREE from 'three';
 
 export default class Thrust {
-  constructor( power ,  velocityFan ) {
-    this.power = power;
-
-    this.velocityFan = velocityFan;
-
-    this.thrust_force = new THREE.Vector3();
+  constructor(powerEngine, velocityFan, direction) {
+    this.powerEngine = powerEngine; // Maximum power of the engine
+    this.velocityFan = velocityFan; // Velocity of the fan
+    this.direction = direction; // Direction of the thrust force
+    this.thrust_force = new THREE.Vector3(0, 0, 0); // Initial thrust force
   }
 
-
-  calculateThrust() {
-    const thrustMagnitude =  this.power * this.velocityFan.length()  ;
-    this.thrust_force.setZ(thrustMagnitude);
-    return this.thrust_force;
-  }
-
-
-  update() {
-    this.thrust_force = this.calculateThrust();
+  update(throttle) {
+    let thrustMagnitude = this.powerEngine * throttle;
+    this.thrust_force = this.direction.clone().multiplyScalar(thrustMagnitude);
   }
 }
