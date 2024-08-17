@@ -14,25 +14,24 @@ export default class Rudder {
   }
 
   calculateTorque() {
-    // Calculate the hydrodynamic force
+    
     const relativeVelocity = this.velocity.length();
     const hydrodynamicForce = 0.5 * this.fluidDensity * Math.pow(relativeVelocity, 2) * this.coefficient * this.area;
 
-    // Calculate the torque due to the steering angle
+   
     const torqueMagnitude = hydrodynamicForce * this.leverArmLength * Math.sin(this.steeringAngle);
 
-    // Assuming torque is around the Y-axis (yaw)
+   
     this.torque.set(0, torqueMagnitude, 0);
   }
   applyDamping() {
-    // Damping factor can be a combination of a base value and a term that scales with velocity
+   
     const dampingFactor = this.dampingFactor + this.velocity.length() * this.velocityDampingCoefficient;
     this.torque.multiplyScalar(dampingFactor);
   }
 
   update(steeringAngle) {
-    this.steeringAngle = steeringAngle; // Update the steering angle
-    this.calculateTorque();
+    this.steeringAngle = steeringAngle;
     this.torque.multiplyScalar(this.dampingFactor);
   }
 }
