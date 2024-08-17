@@ -27,7 +27,6 @@ export default class JetSki {
     };
   }
   setParams(params) {
-    // Ensure all parameters are updated
     this.mass = params.mass ?? this.mass;
     this.dragCon = params.dragCon ?? this.dragCon;
     this.A = params.A ?? this.A;
