@@ -36,7 +36,7 @@ export default class JetSki {
     // Recalculate any derived values if needed
     this.VODPJ = this.mass / this.water.rho;
     this.momentOfInertia = (1 / 12) * this.mass * Math.pow(this.length / 2, 2);
-     //console.log("Updated JetSki Params:", this.getParams());
+   //  console.log("Updated JetSki Params:", this.getParams());
     // if (this.physic) {
     //   this.physic.updateDependentProperties();
     // }

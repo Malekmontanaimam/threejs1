@@ -8,7 +8,8 @@ import JetSki from './physics/jetski';  // Import your JetSki class
 import * as dat from 'dat.gui';  // Import dat.GUI
 
 let camera, scene, renderer;
-let controls, water, sun;
+let controls, water, sun, sky;
+let directionalLight; // Light variable
 const steeringRate = Math.PI / 180;
 const maxSteeringAngle = Math.PI / 9;
 const raycaster = new THREE.Raycaster();
@@ -39,34 +40,32 @@ class JET {
       this.jet.rotation.copy(physics.orientation);
     }
   }
+
   setupAudio() {
-    // Create an AudioListener and add it to the camera
     const listener = new THREE.AudioListener();
     camera.add(listener);
 
-    // Create a global audio source
     this.audio = new THREE.Audio(listener);
 
-    // Load a sound and set it as the Audio object's buffer
     const audioLoader = new THREE.AudioLoader();
     audioLoader.load('./assets/audio/videoplayback.mp3', (buffer) => {
       this.audio.setBuffer(buffer);
       this.audio.setLoop(true);
-      this.audio.setVolume(0.5);  // Adjust volume as needed
+      this.audio.setVolume(0.5);
     });
 
-    // Attach the audio to the jet, but don't play it yet
     this.jet.add(this.audio);
   }
+
   playAudio() {
-    if (this.audio && !this.jetSoundPlaying) { // Play only if not already playing
+    if (this.audio && !this.jetSoundPlaying) {
       this.audio.play();
       this.jetSoundPlaying = true;
     }
   }
 
   stopAudio() {
-    if (this.audio && this.jetSoundPlaying) { // Stop if currently playing
+    if (this.audio && this.jetSoundPlaying) {
       this.audio.stop();
       this.jetSoundPlaying = false;
     }
@@ -74,6 +73,57 @@ class JET {
 }
 
 let jet = new JET();
+
+const modes = {
+  light: {
+    backgroundColor: 0x87CEEB, // Light blue
+    directionalLight: {
+      color: 0xffffff, // White light
+      intensity: 1
+    },
+    sky: {
+      turbidity: 10,
+      rayleigh: 2,
+      mieCoefficient: 0.005,
+      mieDirectionalG: 0.8
+    }
+  },
+  dark: {
+    backgroundColor: 0x000000, // Black
+    directionalLight: {
+      color: 0x444444, // Dim grey
+      intensity: 0.5
+    },
+    sky: {
+      turbidity: 2,
+      rayleigh: 0.1,
+      mieCoefficient: 0.1,
+      mieDirectionalG: 0.1
+    }
+  }
+};
+
+let currentMode = 'light'; // Default mode
+
+function applyMode(mode) {
+  if (!modes[mode]) return;
+
+  const config = modes[mode];
+
+  // Update background color
+  scene.background = new THREE.Color(config.backgroundColor);
+
+  // Update directional light
+  directionalLight.color.set(config.directionalLight.color);
+  directionalLight.intensity = config.directionalLight.intensity;
+
+  // Update sky
+  const skyUniforms = sky.material.uniforms;
+  skyUniforms['turbidity'].value = config.sky.turbidity;
+  skyUniforms['rayleigh'].value = config.sky.rayleigh;
+  skyUniforms['mieCoefficient'].value = config.sky.mieCoefficient;
+  skyUniforms['mieDirectionalG'].value = config.sky.mieDirectionalG;
+}
 
 function init() {
   renderer = new THREE.WebGLRenderer();
@@ -108,7 +158,7 @@ function init() {
   water.rotation.x = -Math.PI / 2;
   scene.add(water);
 
-  const sky = new Sky();
+  sky = new Sky();
   sky.scale.setScalar(10000);
   scene.add(sky);
 
@@ -141,6 +191,11 @@ function init() {
   }
   updateSun();
 
+  // Add Directional Light
+  directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  directionalLight.position.set(5, 5, 15);
+  scene.add(directionalLight);
+
   controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 10, 0);
   controls.minDistance = -5.0;
@@ -148,10 +203,12 @@ function init() {
   controls.update();
 
   window.addEventListener('resize', onWindowResize);
-  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keydown', handleKeyDown);  // Handle light controls in keydown
   window.addEventListener('keyup', handleKeyUp);
 
   setupGUI();
+
+  applyMode(currentMode); // Apply initial mode
 }
 
 function handleKeyDown(e) {
@@ -172,6 +229,23 @@ function handleKeyDown(e) {
     if (steeringAngle < -maxSteeringAngle) {
       steeringAngle = -maxSteeringAngle;
     }
+  }
+  
+  // Light controls
+  if (e.key === 'L') { // Toggle light on 'L' key press
+    directionalLight.visible = !directionalLight.visible;
+  }
+  if (e.key === 'I') { // Increase light intensity on 'I' key press
+    directionalLight.intensity += 1;
+  }
+  if (e.key === 'K') { // Decrease light intensity on 'K' key press
+    directionalLight.intensity -=1;
+  }
+  
+  // Mode toggle
+  if (e.key === 'M') { // Toggle mode on 'M' key press
+    currentMode = currentMode === 'light' ? 'dark' : 'light';
+    applyMode(currentMode);
   }
 }
 
@@ -210,17 +284,22 @@ function setupGUI() {
     stopSimulation: function () {
       jet.stopAudio();
       isRunning = false;  // Stop animation loop
-    }
+    },
+    mode: 'light' // Add mode selector to GUI
   };
 
   gui.add(guiParams, 'mass', 50, 2000).onChange(value => jetSki.setParams({
     ...jetSki.getParams(), mass: value }));
- gui.add(guiParams, 'dragCon', 0.1, 1.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), dragCon: value }));
- gui.add(guiParams, 'A', 0.5, 5.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), A: value }));
- gui.add(guiParams, 'powerEngine', 50000, 100000).onChange(value => jetSki.setParams({ ...jetSki.getParams(), powerEngine: value }));
- gui.add(guiParams, 'length', 1.0, 10.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), length: value }));
-gui.add(guiParams, 'startSimulation');
+  gui.add(guiParams, 'dragCon', 0.1, 1.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), dragCon: value }));
+  gui.add(guiParams, 'A', 0.5, 5.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), A: value }));
+  gui.add(guiParams, 'powerEngine', 50000, 100000).onChange(value => jetSki.setParams({ ...jetSki.getParams(), powerEngine: value }));
+  gui.add(guiParams, 'length', 1.0, 10.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), length: value }));
+  gui.add(guiParams, 'startSimulation');
   gui.add(guiParams, 'stopSimulation');
+  gui.add(guiParams, 'mode', ['light', 'dark']).onChange(value => {
+    currentMode = value;
+    applyMode(currentMode);
+  });
 }
 
 function onWindowResize() {

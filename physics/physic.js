@@ -12,7 +12,7 @@ export default class Physic {
     this.direction = new THREE.Vector3(0, 0, 1);
     this.jetski = new JetSki();
     //this.jetski.physic = this; 
-    this.g = new THREE.Vector3(0, 9.82, 0);
+    this.g = new THREE.Vector3(0,- 9.82, 0);
     this.water = new Water();
     this.totalForce = new THREE.Vector3(0, 0, 0);
     this.position = new THREE.Vector3(0, 0, 0);
@@ -86,7 +86,7 @@ export default class Physic {
     let velChange = this.acceleration.clone().multiplyScalar(this.deltaT);
     this.velocity.add(velChange);
     this.jetski.velocity.add(velChange);
-  console.log(this.jetski.velocity)
+  //console.log(this.jetski.velocity)
 
   }
 
