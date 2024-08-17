@@ -17,9 +17,8 @@ const physics = new Physic();
 let steeringAngle = 0;
 let throttle = 0.8;
 const planeSize = 10000;
-let isRunning = false; // To track whether the application is running
+let isRunning = false; 
 
-// Create an instance of your JetSki class
 const jetSki = new JetSki();
 
 class JET {
