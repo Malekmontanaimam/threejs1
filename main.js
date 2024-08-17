@@ -28,6 +28,7 @@ class JET {
       gltf.scene.position.set(5, 0, 10);
       this.jet = gltf.scene;
       scene.add(gltf.scene);
+      this.setupAudio(); 
       animate();  // Start animation loop
     });
   }
@@ -36,6 +37,38 @@ class JET {
     if (this.jet) {
       this.jet.position.copy(physics.jetski.position);
       this.jet.rotation.copy(physics.orientation);
+    }
+  }
+  setupAudio() {
+    // Create an AudioListener and add it to the camera
+    const listener = new THREE.AudioListener();
+    camera.add(listener);
+
+    // Create a global audio source
+    this.audio = new THREE.Audio(listener);
+
+    // Load a sound and set it as the Audio object's buffer
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load('./assets/audio/videoplayback.mp3', (buffer) => {
+      this.audio.setBuffer(buffer);
+      this.audio.setLoop(true);
+      this.audio.setVolume(0.5);  // Adjust volume as needed
+    });
+
+    // Attach the audio to the jet, but don't play it yet
+    this.jet.add(this.audio);
+  }
+  playAudio() {
+    if (this.audio && !this.jetSoundPlaying) { // Play only if not already playing
+      this.audio.play();
+      this.jetSoundPlaying = true;
+    }
+  }
+
+  stopAudio() {
+    if (this.audio && this.jetSoundPlaying) { // Stop if currently playing
+      this.audio.stop();
+      this.jetSoundPlaying = false;
     }
   }
 }
@@ -171,9 +204,11 @@ function setupGUI() {
     length: params.length,
     startSimulation: function () {
       isRunning = true;
+      jet.playAudio();
       animate();  // Start animation loop
     },
     stopSimulation: function () {
+      jet.stopAudio();
       isRunning = false;  // Stop animation loop
     }
   };

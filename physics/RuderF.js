@@ -31,7 +31,8 @@ export default class Rudder {
   }
 
   update(steeringAngle) {
-    this.steeringAngle = steeringAngle;
+    this.steeringAngle = steeringAngle; // Update the steering angle
+    this.calculateTorque();
     this.torque.multiplyScalar(this.dampingFactor);
   }
 }
