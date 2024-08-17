@@ -1,26 +1,46 @@
 import * as THREE from 'three';
-
 import Water from './Water';
 
 export default class JetSki {
-  
   constructor() {
-    this.water=new Water();
-    this.mass = 400;                         // kg
-    this.VODPJ=this.mass/this.water.rho;      // Volume Of Drawn Part Of Jetski
-    this.dragCon=0.5 ;                       //0.5 -> 0.8
-    this.A=1.0  ;                               // the area that face the water resistance
-    this.powerEngine =75000 ;      //82027                // horsepower(82027 watt)
-    this.velocityFan=new THREE.Vector3(10,0,0);
+    this.water = new Water();
+    this.mass = 1000;                         
+    this.VODPJ = this.mass / this.water.rho;  
+    this.dragCon = 0.5;                       
+    this.A = 1.0;                            
+    this.powerEngine = 75000;                
+    this.velocityFan = new THREE.Vector3(10, 0, 0);
     this.position = new THREE.Vector3();
     this.velocity = new THREE.Vector3();
     this.acceleration = new THREE.Vector3();
-    this.length=3.0;
-    this.momentOfInertia =(1/12)*this.mass*Math.pow(this.length/2,2); 
-
-    
-
+    this.length = 3.0;
+    this.momentOfInertia = (1 / 12) * this.mass * Math.pow(this.length / 2, 2);
   }
 
+  getParams() {
+    return {
+      mass: this.mass,
+      dragCon: this.dragCon,
+      A: this.A,
+      powerEngine: this.powerEngine,
+      length: this.length
+    };
+  }
+  setParams(params) {
+    // Ensure all parameters are updated
+    this.mass = params.mass ?? this.mass;
+    this.dragCon = params.dragCon ?? this.dragCon;
+    this.A = params.A ?? this.A;
+    this.powerEngine = params.powerEngine ?? this.powerEngine;
+    this.length = params.length ?? this.length;
+    
+    // Recalculate any derived values if needed
+    this.VODPJ = this.mass / this.water.rho;
+    this.momentOfInertia = (1 / 12) * this.mass * Math.pow(this.length / 2, 2);
+     //console.log("Updated JetSki Params:", this.getParams());
+    // if (this.physic) {
+    //   this.physic.updateDependentProperties();
+    // }
+  }
  
 }

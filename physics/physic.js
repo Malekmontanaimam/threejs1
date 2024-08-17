@@ -11,7 +11,8 @@ export default class Physic {
   constructor() {
     this.direction = new THREE.Vector3(0, 0, 1);
     this.jetski = new JetSki();
-    this.g = new THREE.Vector3(0, -9.82, 0);
+    //this.jetski.physic = this; 
+    this.g = new THREE.Vector3(0, 9.82, 0);
     this.water = new Water();
     this.totalForce = new THREE.Vector3(0, 0, 0);
     this.position = new THREE.Vector3(0, 0, 0);
@@ -19,11 +20,12 @@ export default class Physic {
     this.acceleration = new THREE.Vector3(0, 0, 0);
     this.buoyancy = new Buoyancy(this.jetski.VODPJ, this.water.rho, this.g);
     this.drag = new Drag(this.jetski.dragCon, this.jetski.A, this.water.rho, this.jetski.velocity, this.direction);
+    
     this.thrust = new Thrust(this.jetski.powerEngine, this.jetski.velocityFan, this.direction);
     this.weight = new Weight(this.jetski.mass, this.g);
     this.rudder = new Rudder(this.jetski); // Initialize Rudder
     this.deltaT = 0.01; // Time step
-    this.lastUpdateTime = Date.now();
+   
     this.totalTorque = new THREE.Vector3(0, 0, 0);
     this.angularAcceleration = new THREE.Vector3(0, 0, 0);
     this.angularVelocity = new THREE.Vector3(0, 0, 0);
@@ -47,16 +49,45 @@ export default class Physic {
     this.totalForce.copy(TF);
   }
 
+  // calc_acceleration() {
+  //   let acc = new THREE.Vector3().copy(this.totalForce).divideScalar(this.jetski.mass);
+  //   this.acceleration.copy(acc);
+  //   this.jetski.acceleration.copy(acc);
+  // }
   calc_acceleration() {
-    let acc = new THREE.Vector3().copy(this.totalForce).divideScalar(this.jetski.mass);
+    let acc = new THREE.Vector3().copy(this.totalForce);
+  
+    if (this.g.y < 0) {
+      // Negative gravity, jetski flies
+      acc.y = -acc.y; // Reverse the direction of the acceleration
+      this.jetski.isFlying = true;
+    } else {
+      // Normal gravity, jetski doesn't fly
+      this.jetski.isFlying = false;
+    }
+  
+    if (this.jetski.mass < 250) {
+      // Lighter jetski, more agile
+      acc.divideScalar(this.jetski.mass * 0.8);
+    } else if (this.jetski.mass < 350) {
+      // Medium jetski, normal behavior
+      acc.divideScalar(this.jetski.mass);
+    } else {
+      // Heavier jetski, less agile
+      acc.divideScalar(this.jetski.mass * 1.2);
+    }
+  
     this.acceleration.copy(acc);
     this.jetski.acceleration.copy(acc);
+    
   }
 
   calc_velocity() {
     let velChange = this.acceleration.clone().multiplyScalar(this.deltaT);
     this.velocity.add(velChange);
     this.jetski.velocity.add(velChange);
+  console.log(this.jetski.velocity)
+
   }
 
   
@@ -100,12 +131,10 @@ export default class Physic {
     this.thrust.update(throttle);
     this.drag.update();
     this.buoyancy.update();
-
     this.calc_totForce();
     this.calc_acceleration();
     this.calc_velocity();
     this.calc_distance();
-
     this.calc_totTorque();
     this.calc_angularAcceleration();
     this.calc_angularVelocity();

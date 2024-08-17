@@ -1,33 +1,35 @@
-import './style.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Water } from './WaterPlus';
 import { Sky } from 'three/examples/jsm/objects/Sky';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import Physic from './physics/physic';
+import JetSki from './physics/jetski';  // Import your JetSki class
+import * as dat from 'dat.gui';  // Import dat.GUI
 
 let camera, scene, renderer;
 let controls, water, sun;
-const steeringRate = Math.PI / 180; // معدل التغيير لزاوية التوجيه
-  const maxSteeringAngle = Math.PI / 9; // أقصى زاوية توجيه (30 درجة)
-  
+const steeringRate = Math.PI / 180;
+const maxSteeringAngle = Math.PI / 9;
 const raycaster = new THREE.Raycaster();
 const gltfloader = new GLTFLoader();
 const physics = new Physic();
 let steeringAngle = 0;
-let throttle = 0.8; 
+let throttle = 0.8;
 const planeSize = 10000;
+let isRunning = false; // To track whether the application is running
+
+// Create an instance of your JetSki class
+const jetSki = new JetSki();
 
 class JET {
   constructor() {
     gltfloader.load('./assets/jetmodel/untitled.glb', (gltf) => {
       gltf.scene.scale.set(0.4, 0.4, 0.4);
-
       gltf.scene.position.set(5, 0, 10);
-     /// gltf.scene.rotation.z = Math.PI/5;
       this.jet = gltf.scene;
       scene.add(gltf.scene);
-      animate();
+      animate();  // Start animation loop
     });
   }
 
@@ -40,14 +42,6 @@ class JET {
 }
 
 let jet = new JET();
-// jet.scene.rotation.y(Math.PI)
-function getWaveHeight(x, z) {
-  const waveFrequency = 1;
-  const waveAmplitude = 0.9;
-  return Math.sin(x * waveFrequency) * waveAmplitude + Math.cos(z * waveFrequency) * waveAmplitude;
-}
-
-init();
 
 function init() {
   renderer = new THREE.WebGLRenderer();
@@ -65,23 +59,19 @@ function init() {
   sun = new THREE.Vector3();
 
   const waterGeometry = new THREE.PlaneGeometry(30000, 30000);
-
-  water = new Water(
-    waterGeometry,
-    {
-      textureWidth: 512,
-      textureHeight: 512,
-      waterNormals: new THREE.TextureLoader().load('assets/waternormals.jpg', function (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      }),
-      sunDirection: new THREE.Vector3(),
-      sunColor: 0xffffff,
-      waterColor: 0x44a0e6,
-      distortionScale: 3.7,
-      fog: scene.fog !== undefined,
-      side: THREE.DoubleSide
-    }
-  );
+  water = new Water(waterGeometry, {
+    textureWidth: 512,
+    textureHeight: 512,
+    waterNormals: new THREE.TextureLoader().load('assets/waternormals.jpg', function (texture) {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    }),
+    sunDirection: new THREE.Vector3(),
+    sunColor: 0xffffff,
+    waterColor: 0x44a0e6,
+    distortionScale: 3.7,
+    fog: scene.fog !== undefined,
+    side: THREE.DoubleSide
+  });
 
   water.rotation.x = -Math.PI / 2;
   scene.add(water);
@@ -102,8 +92,6 @@ function init() {
   };
 
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
-  const sceneEnv = new THREE.Scene();
-
   let renderTarget;
 
   function updateSun() {
@@ -115,21 +103,10 @@ function init() {
     sky.material.uniforms['sunPosition'].value.copy(sun);
     water.material.uniforms['sunDirection'].value.copy(sun).normalize();
 
-    // Update water material settings
-water.material.uniforms['sunColor'].value.set(0x0077ff); // Change to a different color
-water.material.uniforms['waterColor'].value.set(0x001e66); // Darker water color for more realism
-water.material.uniforms['distortionScale'].value = 5.0; // Increase distortion
-
     if (renderTarget !== undefined) renderTarget.dispose();
-
-    sceneEnv.add(sky);
-    renderTarget = pmremGenerator.fromScene(sceneEnv);
-    scene.add(sky);
-
-    
+    renderTarget = pmremGenerator.fromScene(scene);
     scene.environment = renderTarget.texture;
   }
-
   updateSun();
 
   controls = new OrbitControls(camera, renderer.domElement);
@@ -137,45 +114,79 @@ water.material.uniforms['distortionScale'].value = 5.0; // Increase distortion
   controls.minDistance = -5.0;
   controls.maxDistance = 1000000;
   controls.update();
- 
+
   window.addEventListener('resize', onWindowResize);
-  window.addEventListener('keydown', function (e) {
-    if (e.key === "ArrowUp") {
-      throttle = 1;
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+
+  setupGUI();
+}
+
+function handleKeyDown(e) {
+  if (e.key === "ArrowUp") {
+    throttle = 1;
+  }
+  if (e.key === "ArrowDown") {
+    throttle = 0;
+  }
+  if (e.key === "ArrowRight") {
+    steeringAngle = steeringRate;
+    if (steeringAngle > maxSteeringAngle) {
+      steeringAngle = maxSteeringAngle;
     }
-    if (e.key === "ArrowDown") {
-      throttle = 0;
-    }
-    if (e.key === "ArrowRight") {
-      steeringAngle =steeringRate;
-      if (steeringAngle > maxSteeringAngle) {
-          steeringAngle = maxSteeringAngle;
-      }
   }
   if (e.key === "ArrowLeft") {
-      steeringAngle =(-steeringRate);
-      if (steeringAngle < -maxSteeringAngle) {
-          steeringAngle = -maxSteeringAngle;
-      }
+    steeringAngle = -steeringRate;
+    if (steeringAngle < -maxSteeringAngle) {
+      steeringAngle = -maxSteeringAngle;
+    }
   }
-});
+}
 
-window.addEventListener('keyup', function (e) {
+function handleKeyUp(e) {
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      if (steeringAngle > 0) {
-          steeringAngle -= steeringRate;
-          if (steeringAngle < 0) {
-              steeringAngle = 0;
-          }
-      } else if (steeringAngle < 0) {
-          steeringAngle += steeringRate;
-          if (steeringAngle > 0) {
-              steeringAngle = 0;
-          }
+    if (steeringAngle > 0) {
+      steeringAngle -= steeringRate;
+      if (steeringAngle < 0) {
+        steeringAngle = 0;
       }
+    } else if (steeringAngle < 0) {
+      steeringAngle += steeringRate;
+      if (steeringAngle > 0) {
+        steeringAngle = 0;
+      }
+    }
   }
-});
-  physics.update(steeringAngle, throttle);
+}
+
+function setupGUI() {
+  const gui = new dat.GUI();
+
+  const params = jetSki.getParams();
+
+  const guiParams = {
+    mass: params.mass,
+    dragCon: params.dragCon,
+    A: params.A,
+    powerEngine: params.powerEngine,
+    length: params.length,
+    startSimulation: function () {
+      isRunning = true;
+      animate();  // Start animation loop
+    },
+    stopSimulation: function () {
+      isRunning = false;  // Stop animation loop
+    }
+  };
+
+  gui.add(guiParams, 'mass', 50, 2000).onChange(value => jetSki.setParams({
+    ...jetSki.getParams(), mass: value }));
+ gui.add(guiParams, 'dragCon', 0.1, 1.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), dragCon: value }));
+ gui.add(guiParams, 'A', 0.5, 5.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), A: value }));
+ gui.add(guiParams, 'powerEngine', 50000, 100000).onChange(value => jetSki.setParams({ ...jetSki.getParams(), powerEngine: value }));
+ gui.add(guiParams, 'length', 1.0, 10.0).onChange(value => jetSki.setParams({ ...jetSki.getParams(), length: value }));
+gui.add(guiParams, 'startSimulation');
+  gui.add(guiParams, 'stopSimulation');
 }
 
 function onWindowResize() {
@@ -185,6 +196,8 @@ function onWindowResize() {
 }
 
 function animate() {
+  if (!isRunning) return;
+
   render();
   updateCamera();
   controls.update();
@@ -192,13 +205,14 @@ function animate() {
   physics.update(steeringAngle, throttle);
 
   if (jet) jet.update();
-  
+
   document.getElementById('acceleration').innerText = `Acceleration: (${physics.acceleration.z.toFixed(2)})`;
   document.getElementById('position').innerText = `Position: (${physics.jetski.position.x.toFixed(2)}, ${physics.jetski.position.y.toFixed(2)}, ${physics.jetski.position.z.toFixed(2)})`;
-  document.getElementById('thrust').innerText = `Thrust: ${physics.thrust.powerEngine},${physics.thrust.velocityFan.x}`;
+  document.getElementById('thrust').innerText = `Thrust: ${physics.thrust.powerEngine}, ${physics.thrust.velocityFan.x}`;
   document.getElementById('velocity').innerText = `Velocity: (${physics.jetski.velocity.x.toFixed(2)}, ${physics.velocity.y.toFixed(2)}, ${physics.jetski.velocity.z.toFixed(2)})`;
-  document.getElementById('drag').innerText = `Drag: (${physics.drag.coefficient},${physics.drag.area},${physics.drag.fluidDensity},${physics.drag.drag_force.z})`;
+  document.getElementById('drag').innerText = `Drag: (${physics.drag.coefficient}, ${physics.drag.area}, ${physics.drag.fluidDensity}, ${physics.drag.drag_force.z})`;
   document.getElementById('deltaT').innerText = `Delta T: ${physics.deltaT}`;
+
   requestAnimationFrame(animate);
 }
 
@@ -209,24 +223,14 @@ function render() {
 
 function updateCamera() {
   if (jet.jet) {
-    const offset = new THREE.Vector3(100, 100, 300); // Offset behind and above the jet (adjust as needed)
+    const offset = new THREE.Vector3(100, 100, 300);
     const worldPosition = new THREE.Vector3();
-    
-    // Get the jet's current world position
     jet.jet.getWorldPosition(worldPosition);
-
-    // Apply the offset relative to the jet's orientation
     const offsetRotated = offset.clone().applyQuaternion(jet.jet.quaternion);
-
-    // Calculate the target position for the camera
     const targetPosition = worldPosition.clone().add(offsetRotated);
-
-    // Set the camera position directly to the target position
     camera.position.copy(targetPosition);
-
-    // Make the camera look at the jet's current position
     camera.lookAt(worldPosition);
   }
 }
 
-
+init();
