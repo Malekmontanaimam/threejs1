@@ -18,3 +18,64 @@ padding: 0;
     font-family: Arial, sans-serif;
     font-size: 14px;
 }
+
+/* ---------- Race UI ---------- */
+#screens { font-family: 'Arial', sans-serif; }
+.screen {
+    position: fixed; inset: 0; z-index: 80;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #fff; text-align: center;
+}
+.screen.hidden { display: none; }
+
+.start-screen, .results-screen {
+    background: radial-gradient(ellipse at center, rgba(6,20,40,0.55) 0%, rgba(3,10,22,0.82) 100%);
+    backdrop-filter: blur(2px);
+}
+.screen .title {
+    font-size: 72px; font-weight: 900; letter-spacing: 4px;
+    text-shadow: 0 6px 30px rgba(0,0,0,0.6);
+}
+.screen .title span { color: #2ee6ff; }
+.screen .subtitle { font-size: 20px; opacity: 0.85; margin: 10px 0 34px; }
+
+.btn {
+    pointer-events: auto; cursor: pointer;
+    font-size: 22px; font-weight: 800; letter-spacing: 2px;
+    color: #04121f; background: linear-gradient(180deg, #4fe3ff, #18b8e6);
+    border: none; border-radius: 40px; padding: 16px 46px;
+    box-shadow: 0 10px 30px rgba(20,180,230,0.45);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 14px 38px rgba(20,180,230,0.6); }
+.btn:active { transform: translateY(1px) scale(0.99); }
+
+.controls { margin-top: 30px; font-size: 15px; opacity: 0.8; }
+.controls b { color: #2ee6ff; }
+
+/* Countdown */
+.countdown { background: transparent; }
+.count-num {
+    font-size: 180px; font-weight: 900; color: #fff;
+    text-shadow: 0 0 40px rgba(46,230,255,0.8), 0 8px 30px rgba(0,0,0,0.6);
+    animation: pop .5s ease-out;
+}
+.count-num.go { color: #46ff8c; text-shadow: 0 0 50px rgba(70,255,140,0.9); }
+@keyframes pop {
+    0% { transform: scale(2.4); opacity: 0; }
+    30% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.85); opacity: 0.9; }
+}
+
+/* Results */
+.standings { list-style: none; padding: 0; margin: 6px 0 30px; width: 360px; }
+.standings li {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 18px; margin: 7px 0; border-radius: 12px;
+    background: rgba(255,255,255,0.08); font-size: 19px;
+}
+.standings li.me { background: rgba(46,230,255,0.22); outline: 2px solid #2ee6ff; }
+.standings .pos { font-weight: 900; width: 30px; color: #ffd54a; }
+.standings .nm { flex: 1; text-align: left; font-weight: 700; }
+.standings .tm { font-variant-numeric: tabular-nums; opacity: 0.9; }

@@ -19,7 +19,11 @@ export default class Physic {
     this.velocity = new THREE.Vector3(0, 0, 0);
     this.acceleration = new THREE.Vector3(0, 0, 0);
     this.buoyancy = new Buoyancy(this.jetski.VODPJ, this.water.rho, this.g);
-    this.drag = new Drag(this.jetski.dragCon, this.jetski.A, this.water.rho, this.jetski.velocity, this.direction);
+    // A planing jetski only skims the surface, so its effective hydrodynamic
+    // drag is far lower than fully-submerged water density (1000). Using a
+    // realistic planing value keeps a fun top speed instead of crawling.
+    this.dragDensity = 220;
+    this.drag = new Drag(this.jetski.dragCon, this.jetski.A, this.dragDensity, this.jetski.velocity, this.direction);
     
     this.thrust = new Thrust(this.jetski.powerEngine, this.jetski.velocityFan, this.direction);
     this.weight = new Weight(this.jetski.mass, this.g);
@@ -30,7 +34,9 @@ export default class Physic {
     this.angularAcceleration = new THREE.Vector3(0, 0, 0);
     this.angularVelocity = new THREE.Vector3(0, 0, 0);
     this.orientation = new THREE.Euler(0, 0, 0); // Orientation (pitch, yaw, roll)
-   this.maxAngularVelocity = Math.PI/20;
+   this.maxAngularVelocity = Math.PI / 4; // upper bound on yaw rate (rad/s)
+   this.angularDamping = 0.96; // per fixed step: bleed off spin when not steering
+   this.maxSpeed = 60; // hard safety cap on linear speed (m/s) ~216 km/h
   }
 
   updateDirection() {
@@ -86,8 +92,11 @@ export default class Physic {
     let velChange = this.acceleration.clone().multiplyScalar(this.deltaT);
     this.velocity.add(velChange);
     this.jetski.velocity.add(velChange);
-  //console.log(this.jetski.velocity)
 
+    // Safety clamp: keep both velocity references in sync and bounded so a
+    // misconfigured force can never produce a runaway speed again.
+    this.velocity.clampLength(0, this.maxSpeed);
+    this.jetski.velocity.clampLength(0, this.maxSpeed);
   }
 
   
@@ -111,7 +120,15 @@ export default class Physic {
   calc_angularVelocity() {
     let angularVelChange = this.angularAcceleration.clone().multiplyScalar(this.deltaT);
     this.angularVelocity.add(angularVelChange);
-    this.angularVelocity.clampLength(0, this.maxAngularVelocity);
+
+    // Damping so the jetski stops yawing once you release the steering.
+    this.angularVelocity.multiplyScalar(this.angularDamping);
+
+    // Turn rate scales with speed: barely turns at a standstill, fully
+    // responsive once moving (mirrors how a real water-steered craft behaves).
+    const speed = this.jetski.velocity.length();
+    const speedFactor = Math.min(speed / 8, 1);
+    this.angularVelocity.clampLength(0, this.maxAngularVelocity * speedFactor);
   }
 
   calc_orientation() {
